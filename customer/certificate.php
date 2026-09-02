@@ -2,20 +2,28 @@
 session_start();
 include '../include/db.php';
 
-if (!isset($_SESSION['customer_id']) || !isset($_GET['result_id'])) {
-    header("Location: dashboard.php");
+// Allow access if user is either a logged-in student OR a logged-in admin
+if (!isset($_GET['result_id']) || (!isset($_SESSION['customer_id']) && !isset($_SESSION['admin_id']))) {
+    header("Location: ../index.php");
     exit();
 }
 
 $result_id = intval($_GET['result_id']);
-$customer_id = $_SESSION['customer_id'];
+
+// If a student is viewing, restrict it to ONLY their certificates. 
+// If an admin is viewing, let them see any certificate.
+$where_clause = "WHERE r.result_id = $result_id";
+if (isset($_SESSION['customer_id'])) {
+    $customer_id = intval($_SESSION['customer_id']);
+    $where_clause .= " AND r.customer_id = $customer_id";
+}
 
 // Fetch result, customer name, category name, and difficulty
 $query = "SELECT r.*, c.category_name, cu.name as customer_name 
           FROM result r 
           JOIN customer cu ON r.customer_id = cu.customer_id 
           LEFT JOIN category c ON r.category_id = c.category_id 
-          WHERE r.result_id = $result_id AND r.customer_id = $customer_id";
+          $where_clause";
 
 $result = mysqli_query($conn, $query);
 $data = mysqli_fetch_assoc($result);
@@ -29,6 +37,9 @@ $category_name = $data['category_name'] ?? 'IT Certification';
 $difficulty = !empty($data['difficulty']) ? $data['difficulty'] : 'General';
 $percentage = $data['percentage'];
 $date_earned = date('F d, Y', strtotime($data['attempt_date']));
+
+// Dynamic back button depending on who is viewing the certificate
+$back_link = isset($_SESSION['admin_id']) ? '../admin/manage_certificates.php' : 'dashboard.php';
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -83,7 +94,7 @@ $date_earned = date('F d, Y', strtotime($data['attempt_date']));
 
     <div class="action-bar">
         <button onclick="window.print()" class="btn-custom primary">Print / Save PDF</button>
-        <a href="dashboard.php" class="btn-custom outline">Back to Dashboard</a>
+        <a href="<?php echo $back_link; ?>" class="btn-custom outline">Back to Dashboard</a>
     </div>
 
     <div class="certificate-wrapper">

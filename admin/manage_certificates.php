@@ -121,7 +121,8 @@ $certificates = mysqli_query($conn, $query);
                                 <td><strong style="color: var(--accent-green);"><?php echo $row['percentage']; ?>%</strong></td>
                                 <td style="color: var(--text-secondary); font-size: 13px;"><?php echo date('M d, Y', strtotime($row['attempt_date'])); ?></td>
                                 <td style="text-align: right;">
-                                    <a href="../customer/certificate.php?result_id=<?php echo $row['result_id']; ?>" target="_blank" class="btn-action">View Certificate</a>
+                                    <!-- target="_blank" removed here so it opens in the same tab -->
+                                    <a href="../customer/certificate.php?result_id=<?php echo $row['result_id']; ?>" class="btn-action">View Certificate</a>
                                 </td>
                             </tr>
                         <?php endwhile; ?>
