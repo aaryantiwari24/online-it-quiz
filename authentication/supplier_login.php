@@ -32,30 +32,41 @@ if (isset($_POST['login'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supplier Login - IT Quiz</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/style.css">
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
     <style>
-        body { background-color: var(--bg-main); font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: white; padding: 40px; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm); width: 100%; max-width: 400px; box-sizing: border-box; }
-        .login-card h2 { margin-top: 0; font-size: 24px; color: var(--text-dark); margin-bottom: 25px; text-align: center; }
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: var(--bg-main); font-family: 'Plus Jakarta Sans', sans-serif; }
+        .auth-card { background: var(--surface-white); padding: 40px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-subtle); width: 100%; max-width: 420px; box-sizing: border-box; }
+        .auth-card h2 { margin-top: 0; font-size: 24px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; text-align: center; }
+        .auth-subtitle { font-size: 14px; color: var(--text-secondary); text-align: center; margin-bottom: 30px; }
         .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 14px; font-weight: 500; color: var(--text-dark); margin-bottom: 8px; }
-        .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: var(--radius-md); font-size: 14px; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        .form-control:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-        .alert-error { background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 14px; font-weight: 500; text-align: center; }
-        .auth-footer { text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-muted); }
-        .auth-footer a { color: var(--accent-primary); text-decoration: none; font-weight: 500; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-control { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border-light); background: var(--bg-main); color: var(--text-primary); border-radius: var(--radius-md); font-size: 15px; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; transition: var(--transition); }
+        .form-control:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 4px rgba(81, 70, 229, 0.1); }
+        .alert-error { background: rgba(255, 107, 74, 0.1); color: var(--accent-coral); padding: 12px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 14px; font-weight: 600; text-align: center; border: 1px solid rgba(255, 107, 74, 0.2); }
+        .btn-submit { width: 100%; background: var(--brand-primary); color: white; padding: 14px; border-radius: var(--radius-md); font-weight: 700; font-size: 15px; border: none; cursor: pointer; transition: var(--transition); box-shadow: 0 4px 12px rgba(81, 70, 229, 0.2); }
+        .btn-submit:hover { background: var(--brand-secondary); transform: translateY(-2px); }
+        .auth-footer { text-align: center; margin-top: 25px; font-size: 14px; color: var(--text-secondary); }
+        .auth-footer a { color: var(--brand-primary); text-decoration: none; font-weight: 600; }
         .auth-footer a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
 
-    <div class="login-card">
-        <h2>Supplier Login</h2>
+    <div class="auth-card">
+        <h2>Instructor Portal</h2>
+        <div class="auth-subtitle">Log in to manage questions</div>
         
         <?php if (!empty($error)): ?>
             <div class="alert-error"><?php echo $error; ?></div>
@@ -70,7 +81,7 @@ if (isset($_POST['login'])) {
                 <label>Password</label>
                 <input type="password" name="password" class="form-control" required>
             </div>
-            <button type="submit" name="login" class="btn" style="width: 100%;">Login to Portal</button>
+            <button type="submit" name="login" class="btn-submit">Login to Portal</button>
         </form>
         
         <div class="auth-footer">

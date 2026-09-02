@@ -7,23 +7,40 @@ if (!isset($_SESSION['admin_id'])) {
     exit();
 }
 
-$total_customers = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM customer"))['count'];
-$total_categories = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM category"))['count'];
-$total_exams = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM result"))['count'];
+$admin_id = $_SESSION['admin_id'];
+$success_msg = "";
+$error_msg = "";
 
-$recent_results_query = "SELECT r.*, c.category_name, cu.name as customer_name 
-                         FROM result r 
-                         JOIN customer cu ON r.customer_id = cu.customer_id 
-                         LEFT JOIN category c ON r.category_id = c.category_id 
-                         ORDER BY r.attempt_date DESC LIMIT 10";
-$recent_results = mysqli_query($conn, $recent_results_query);
+$admin_query = mysqli_query($conn, "SELECT * FROM admin WHERE admin_id = $admin_id");
+$admin = mysqli_fetch_assoc($admin_query);
+
+$username_key = array_key_exists('username', $admin) ? 'username' : (array_key_exists('admin_name', $admin) ? 'admin_name' : 'name');
+$email_key = array_key_exists('email', $admin) ? 'email' : 'admin_email';
+
+if (isset($_POST['update_profile'])) {
+    $username = isset($_POST['username']) ? mysqli_real_escape_string($conn, $_POST['username']) : '';
+    $email = isset($_POST['email']) ? mysqli_real_escape_string($conn, $_POST['email']) : '';
+    
+    if (!empty($username) && !empty($email)) {
+        $update_query = "UPDATE admin SET $username_key = '$username', $email_key = '$email' WHERE admin_id = $admin_id";
+        if (mysqli_query($conn, $update_query)) {
+            $success_msg = "Profile updated successfully!";
+            $admin_query = mysqli_query($conn, "SELECT * FROM admin WHERE admin_id = $admin_id");
+            $admin = mysqli_fetch_assoc($admin_query);
+        } else {
+            $error_msg = "Error updating profile: " . mysqli_error($conn);
+        }
+    } else {
+        $error_msg = "All fields are required.";
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - IT Quiz</title>
+    <title>Admin Profile - IT Quiz</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/style.css">
     
@@ -52,26 +69,20 @@ $recent_results = mysqli_query($conn, $recent_results_query);
         .theme-toggle:hover { background: var(--border-light); }
 
         .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 40px; box-sizing: border-box; background-color: var(--bg-main); }
-        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 35px; }
-        .dashboard-header h1 { font-size: 26px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.5px; }
-        .admin-badge { background: rgba(81, 70, 229, 0.15); color: var(--brand-primary); padding: 8px 16px; border-radius: 30px; font-size: 13px; font-weight: 700; border: 1px solid rgba(81, 70, 229, 0.2); display: flex; align-items: center; gap: 8px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 35px; }
+        .page-header h1 { font-size: 26px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.5px; }
 
-        .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 40px; }
-        .metric-card { background: var(--surface-white); padding: 30px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-subtle); }
-        .metric-card h3 { margin: 0 0 10px 0; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
-        .metric-card .number { font-size: 36px; font-weight: 800; color: var(--text-primary); margin: 0; }
-
-        .table-card { background: var(--surface-white); border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-subtle); padding: 30px; }
-        .table-card h2 { margin-top: 0; font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-        th { padding: 14px 18px; background: rgba(104, 112, 137, 0.04); color: var(--text-secondary); font-weight: 700; border-bottom: 1px solid var(--border-light); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
-        td { padding: 16px 18px; border-bottom: 1px solid var(--border-light); color: var(--text-primary); }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: rgba(104, 112, 137, 0.02); }
+        .profile-card { background: var(--surface-white); border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-subtle); padding: 40px; max-width: 600px; box-sizing: border-box; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-control { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border-light); background: var(--bg-main); color: var(--text-primary); border-radius: var(--radius-md); font-size: 14px; box-sizing: border-box; font-family: 'Poppins', sans-serif; transition: var(--transition); }
+        .form-control:focus { outline: none; border-color: var(--brand-primary); }
         
-        .badge { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-block; }
-        .badge-pass { background: rgba(24, 183, 122, 0.15); color: var(--accent-green); }
-        .badge-fail { background: rgba(255, 107, 74, 0.15); color: var(--accent-coral); }
+        .btn-primary { background: var(--brand-primary); color: white; padding: 14px 24px; border-radius: var(--radius-md); font-weight: 600; font-size: 14px; cursor: pointer; border: none; transition: var(--transition); display: block; text-align: center; }
+        .btn-primary:hover { background: var(--brand-secondary); transform: translateY(-1px); }
+
+        .alert-success { background: rgba(24, 183, 122, 0.1); border: 1px solid rgba(24, 183, 122, 0.2); color: var(--accent-green); padding: 12px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 14px; font-weight: 600; }
+        .alert-error { background: rgba(255, 107, 74, 0.1); border: 1px solid rgba(255, 107, 74, 0.2); color: var(--accent-coral); padding: 12px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 14px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -85,13 +96,13 @@ $recent_results = mysqli_query($conn, $recent_results_query);
         </a>
         <div class="sidebar-menu">
             <a href="../index.php" class="sidebar-link">🏠 Home</a>
-            <a href="dashboard.php" class="sidebar-link active">📊 Dashboard</a>
+            <a href="dashboard.php" class="sidebar-link">📊 Dashboard</a>
             <a href="manage_customers.php" class="sidebar-link">👥 Customers</a>
             <a href="manage_suppliers.php" class="sidebar-link">🏢 Suppliers</a>
             <a href="manage_category.php" class="sidebar-link">📂 Categories</a>
             <a href="view_results.php" class="sidebar-link">📈 Results</a>
             <a href="manage_certificates.php" class="sidebar-link">🎓 Certificates</a>
-            <a href="profile.php" class="sidebar-link">⚙️ Profile</a>
+            <a href="profile.php" class="sidebar-link active">⚙️ Profile</a>
         </div>
         <div class="sidebar-footer">
             <button class="theme-toggle" id="themeToggleBtn" aria-label="Toggle dark mode">
@@ -103,61 +114,29 @@ $recent_results = mysqli_query($conn, $recent_results_query);
     </div>
 
     <div class="main-content">
-        <div class="dashboard-header">
-            <h1>Platform Overview</h1>
-            <div class="admin-badge">🛡️ Administrator</div>
+        <div class="page-header">
+            <h1>Admin Profile Settings</h1>
         </div>
 
-        <div class="metrics-grid">
-            <div class="metric-card">
-                <h3>Total Customers</h3>
-                <p class="number"><?php echo $total_customers; ?></p>
-            </div>
-            <div class="metric-card">
-                <h3>Active Categories</h3>
-                <p class="number"><?php echo $total_categories; ?></p>
-            </div>
-            <div class="metric-card">
-                <h3>Total Exams Taken</h3>
-                <p class="number"><?php echo $total_exams; ?></p>
-            </div>
-        </div>
+        <div class="profile-card">
+            <?php if (!empty($success_msg)): ?>
+                <div class="alert-success"><?php echo $success_msg; ?></div>
+            <?php endif; ?>
+            <?php if (!empty($error_msg)): ?>
+                <div class="alert-error"><?php echo $error_msg; ?></div>
+            <?php endif; ?>
 
-        <div class="table-card">
-            <h2>Recent Certification Attempts</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Student Name</th>
-                        <th>Category</th>
-                        <th>Difficulty</th>
-                        <th>Score</th>
-                        <th>Status</th>
-                        <th>Date & Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (mysqli_num_rows($recent_results) > 0): ?>
-                        <?php while ($row = mysqli_fetch_assoc($recent_results)): ?>
-                            <tr>
-                                <td><strong><?php echo htmlspecialchars($row['customer_name']); ?></strong></td>
-                                <td><?php echo htmlspecialchars($row['category_name'] ?? 'General'); ?></td>
-                                <td><?php echo htmlspecialchars($row['difficulty'] ?? 'Standard'); ?></td>
-                                <td><strong><?php echo $row['percentage']; ?>%</strong></td>
-                                <td>
-                                    <?php $badge = strtolower($row['status']) === 'pass' ? 'badge-pass' : 'badge-fail'; ?>
-                                    <span class="badge <?php echo $badge; ?>"><?php echo $row['status']; ?></span>
-                                </td>
-                                <td style="color: var(--text-secondary);"><?php echo date('M d, Y H:i', strtotime($row['attempt_date'])); ?></td>
-                            </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 40px;">No certification attempts recorded yet.</td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+            <form method="POST">
+                <div class="form-group">
+                    <label>Admin Username</label>
+                    <input type="text" name="username" class="form-control" value="<?php echo htmlspecialchars($admin[$username_key] ?? ''); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($admin[$email_key] ?? ''); ?>" required>
+                </div>
+                <button type="submit" name="update_profile" class="btn-primary" style="width: 100%;">Save Changes</button>
+            </form>
         </div>
     </div>
 

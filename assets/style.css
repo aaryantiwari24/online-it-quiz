@@ -85,3 +85,63 @@ p { line-height: 1.7; color: var(--text-muted); }
     opacity: 1;
     transform: translateY(0);
 }
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+    /* Default Light Mode */
+    --bg-main: #F8F9FC;
+    --surface-white: #FFFFFF;
+    --text-primary: #15182B;
+    --text-secondary: #687089;
+    --brand-primary: #5146E5;
+    --brand-secondary: #6C63FF;
+    --accent-coral: #FF6B4A;
+    --accent-green: #18B77A;
+    --border-light: rgba(104, 112, 137, 0.15);
+    --shadow-subtle: 0 12px 30px rgba(21, 24, 43, 0.04);
+    --shadow-hover: 0 20px 40px rgba(81, 70, 229, 0.08);
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+[data-theme="dark"] {
+    /* Dark Mode Palette */
+    --bg-main: #0F1117;
+    --surface-white: #181B25;
+    --text-primary: #F1F3F9;
+    --text-secondary: #949EB7;
+    --brand-primary: #6C63FF;
+    --brand-secondary: #8B83FF;
+    --accent-coral: #FF7E61;
+    --accent-green: #10B981;
+    --border-light: rgba(148, 158, 183, 0.15);
+    --shadow-subtle: 0 12px 30px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 20px 40px rgba(108, 99, 255, 0.15);
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Reusable UI Components */
+.btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background: var(--brand-primary);
+    color: #FFFFFF;
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    transition: var(--transition);
+    border: none;
+    cursor: pointer;
+}
+.btn:hover {
+    background: var(--brand-secondary);
+    transform: translateY(-2px);
+}

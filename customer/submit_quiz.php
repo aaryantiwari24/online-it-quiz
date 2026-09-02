@@ -19,7 +19,6 @@ $correct_answers = 0;
 
 $submitted_answers = isset($_POST['answer']) ? $_POST['answer'] : [];
 
-// Track detailed review data
 $review_data = [];
 
 foreach ($questions as $q) {
@@ -64,41 +63,55 @@ unset($_SESSION['quiz_category_id']);
 unset($_SESSION['quiz_difficulty']);
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Result - IT Quiz</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/style.css">
+    
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
     <style>
-        body { background-color: var(--bg-main); font-family: 'Poppins', sans-serif; margin: 0; padding: 40px 0; display: flex; justify-content: center; }
-        .result-container { max-width: 700px; width: 100%; display: flex; flex-direction: column; gap: 30px; }
+        body { background-color: var(--bg-main); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
+        .result-container { max-width: 720px; width: 100%; display: flex; flex-direction: column; gap: 30px; }
         
-        .result-card { background: var(--bg-card); padding: 50px; border-radius: var(--radius-lg); box-shadow: var(--shadow-hover); text-align: center; border: 1px solid #e2e8f0; }
-        .score-circle { width: 150px; height: 150px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 700; margin: 0 auto 30px auto; color: white; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-        .pass-circle { background: linear-gradient(135deg, var(--accent-success), #059669); }
-        .fail-circle { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .result-card { background: var(--surface-white); padding: 50px; border-radius: var(--radius-lg); box-shadow: var(--shadow-subtle); text-align: center; border: 1px solid var(--border-light); }
+        .score-circle { width: 140px; height: 140px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 38px; font-weight: 800; margin: 0 auto 30px auto; color: white; box-shadow: 0 10px 20px rgba(0,0,0,0.06); }
+        .pass-circle { background: linear-gradient(135deg, var(--accent-green), #059669); }
+        .fail-circle { background: linear-gradient(135deg, var(--accent-coral), #dc2626); }
         
-        .result-title { font-size: 28px; margin-bottom: 10px; color: var(--text-dark); }
-        .result-subtitle { color: var(--text-muted); margin-bottom: 30px; font-size: 16px; }
+        .result-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; color: var(--text-primary); letter-spacing: -0.5px; }
+        .result-subtitle { color: var(--text-secondary); margin-bottom: 30px; font-size: 16px; font-weight: 500; }
         
-        .stats-row { display: flex; justify-content: space-around; margin-bottom: 40px; background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid #f1f5f9; }
-        .stat-box strong { display: block; font-size: 24px; color: var(--text-dark); margin-bottom: 5px; }
-        .stat-box span { font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 1px; }
+        .stats-row { display: flex; justify-content: space-around; margin-bottom: 40px; background: var(--bg-main); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border-light); }
+        .stat-box strong { display: block; font-size: 26px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+        .stat-box span { font-size: 11px; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; letter-spacing: 1px; }
         
         .action-buttons { display: flex; gap: 15px; justify-content: center; }
 
         /* Review Section */
-        .review-card { background: var(--bg-card); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid #e2e8f0; }
-        .review-card h2 { margin-top: 0; font-size: 22px; color: var(--text-dark); margin-bottom: 25px; }
-        .review-item { padding: 20px; border-radius: var(--radius-md); margin-bottom: 15px; border: 1px solid #e2e8f0; background: #f8fafc; }
-        .review-item.correct { border-left: 5px solid #10b981; }
-        .review-item.incorrect { border-left: 5px solid #ef4444; }
-        .q-title { font-weight: 600; color: var(--text-dark); margin-bottom: 10px; font-size: 16px; }
-        .ans-details { font-size: 14px; color: var(--text-muted); display: flex; gap: 20px; }
-        .user-ans { font-weight: 600; }
-        .user-ans.right { color: #10b981; }
-        .user-ans.wrong { color: #ef4444; }
+        .review-card { background: var(--surface-white); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow-subtle); border: 1px solid var(--border-light); }
+        .review-card h2 { margin-top: 0; font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 25px; }
+        .review-item { padding: 20px; border-radius: var(--radius-md); margin-bottom: 15px; border: 1px solid var(--border-light); background: var(--bg-main); text-align: left; }
+        .review-item.correct { border-left: 5px solid var(--accent-green); }
+        .review-item.incorrect { border-left: 5px solid var(--accent-coral); }
+        .q-title { font-weight: 700; color: var(--text-primary); margin-bottom: 12px; font-size: 15px; }
+        .ans-details { font-size: 14px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px; }
+        .user-ans { font-weight: 700; }
+        .user-ans.right { color: var(--accent-green); }
+        .user-ans.wrong { color: var(--accent-coral); }
+
+        .btn-custom { padding: 12px 24px; border-radius: var(--radius-md); font-weight: 600; font-size: 14px; text-decoration: none; transition: var(--transition); display: inline-block; }
+        .btn-custom.primary { background: var(--brand-primary); color: white; box-shadow: 0 4px 12px rgba(81, 70, 229, 0.2); }
+        .btn-custom.primary:hover { background: var(--brand-secondary); transform: translateY(-1px); }
+        .btn-custom.outline { background: transparent; border: 1.5px solid var(--border-light); color: var(--text-primary); }
+        .btn-custom.outline:hover { border-color: var(--text-primary); }
     </style>
 </head>
 <body>
@@ -118,11 +131,11 @@ unset($_SESSION['quiz_difficulty']);
 
             <div class="stats-row">
                 <div class="stat-box">
-                    <strong style="color: var(--accent-success);"><?php echo $correct_answers; ?></strong>
+                    <strong style="color: var(--accent-green);"><?php echo $correct_answers; ?></strong>
                     <span>Correct</span>
                 </div>
                 <div class="stat-box">
-                    <strong style="color: #ef4444;"><?php echo $wrong_answers; ?></strong>
+                    <strong style="color: var(--accent-coral);"><?php echo $wrong_answers; ?></strong>
                     <span>Incorrect</span>
                 </div>
                 <div class="stat-box">
@@ -132,11 +145,11 @@ unset($_SESSION['quiz_difficulty']);
             </div>
 
             <div class="action-buttons">
-                <a href="dashboard.php" class="btn btn-outline">Back to Dashboard</a>
+                <a href="dashboard.php" class="btn-custom outline">Back to Dashboard</a>
                 <?php if ($status === 'Pass'): ?>
-                    <a href="certificate.php?result_id=<?php echo $result_id; ?>" class="btn" style="background: var(--accent-success);">View Certificate</a>
+                    <a href="certificate.php?result_id=<?php echo $result_id; ?>" class="btn-custom primary" style="background: var(--accent-green);">View Certificate</a>
                 <?php else: ?>
-                    <a href="dashboard.php" class="btn">Try Again</a>
+                    <a href="dashboard.php#quizzes" class="btn-custom primary">Try Again</a>
                 <?php endif; ?>
             </div>
         </div>
@@ -155,8 +168,8 @@ unset($_SESSION['quiz_difficulty']);
                             </span>
                         </div>
                         <?php if (!$rev['is_correct']): ?>
-                            <div>
-                                Correct Answer: <strong style="color: #10b981;"><?php echo $rev['correct_answer']; ?> (<?php echo htmlspecialchars($rev['option_' . strtolower($rev['correct_answer'])]); ?>)</strong>
+                            <div style="color: var(--accent-green);">
+                                Correct Answer: <strong><?php echo $rev['correct_answer']; ?> (<?php echo htmlspecialchars($rev['option_' . strtolower($rev['correct_answer'])] ?? ''); ?>)</strong>
                             </div>
                         <?php endif; ?>
                     </div>

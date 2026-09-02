@@ -2,6 +2,9 @@
 session_start();
 include '../include/db.php';
 
+// Prevent browser form resubmission warning
+header("Cache-Control: private, must-revalidate, max-age=0");
+
 if (!isset($_SESSION['customer_id'])) {
     header("Location: ../authentication/customer_login.php");
     exit();
@@ -40,83 +43,106 @@ $total_passed = $stats['total_passed'] ?? 0;
 $avg_score = ($total_taken > 0) ? round($stats['avg_score']) : 0;
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Dashboard - IT Quiz</title>
+    <title>Student Dashboard - IT Quiz</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/style.css">
+    
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+
     <style>
-        body { display: flex; height: 100vh; overflow: hidden; background-color: var(--bg-main); font-family: 'Poppins', sans-serif; margin: 0; }
+        body { display: flex; height: 100vh; overflow: hidden; background-color: var(--bg-main); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; }
         
         /* Sidebar Layout */
-        .sidebar { width: 260px; background: white; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; height: 100vh; }
-        .sidebar-header { padding: 25px; font-size: 20px; font-weight: 700; color: var(--accent-primary); border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; }
-        .sidebar-menu { flex: 1; overflow-y: auto; padding: 20px 0; display: flex; flex-direction: column; gap: 5px; }
-        .menu-item { padding: 12px 25px; color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: var(--transition); border-left: 3px solid transparent; display: flex; align-items: center; gap: 12px; cursor: pointer; }
-        .menu-item:hover, .menu-item.active { background: #eef2ff; color: var(--accent-primary); border-left-color: var(--accent-primary); }
-        .sidebar-footer { padding: 20px; border-top: 1px solid #f1f5f9; }
-        .btn-logout { display: block; text-align: center; background: #fee2e2; color: #dc2626; text-decoration: none; padding: 10px; border-radius: 8px; font-weight: 500; font-size: 14px; transition: var(--transition); }
-        .btn-logout:hover { background: #fca5a5; color: white; }
+        .sidebar { width: 280px; background: var(--surface-white); border-right: 1px solid var(--border-light); display: flex; flex-direction: column; height: 100vh; transition: background 0.3s ease, border 0.3s ease; padding: 25px 20px; box-sizing: border-box; }
+        .sidebar-header { font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 30px; display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .logo-icon { width: 32px; height: 32px; background: var(--brand-primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; }
+        
+        .sidebar-menu { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .menu-item { padding: 14px 16px; color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 600; transition: var(--transition); border-left: 3px solid transparent; display: flex; align-items: center; gap: 10px; cursor: pointer; border-radius: var(--radius-md); }
+        .menu-item:hover, .menu-item.active { background: rgba(81, 70, 229, 0.08); color: var(--brand-primary); border-left-color: var(--brand-primary); }
+        
+        .sidebar-footer { padding-top: 20px; border-top: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; }
+        .btn-logout { display: inline-block; text-align: center; background: rgba(255, 107, 74, 0.1); color: var(--accent-coral); text-decoration: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; transition: var(--transition); border: 1px solid rgba(255, 107, 74, 0.2); }
+        .btn-logout:hover { background: var(--accent-coral); color: white; }
+
+        /* Theme Toggle in Sidebar Footer */
+        .theme-toggle { background: none; border: 1px solid var(--border-light); width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-primary); transition: var(--transition); }
+        .theme-toggle:hover { background: var(--border-light); }
 
         /* Main Workspace */
-        .main-content { flex: 1; overflow-y: auto; padding: 40px; }
-        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .user-badge { background: white; padding: 8px 16px; border-radius: 20px; border: 1px solid #e2e8f0; font-size: 14px; font-weight: 500; box-shadow: var(--shadow-sm); }
+        .main-content { flex: 1; overflow-y: auto; padding: 40px; background-color: var(--bg-main); }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 35px; }
+        .header-top h2 { font-size: 26px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; margin: 0; }
+        .user-badge { background: var(--surface-white); padding: 10px 18px; border-radius: 30px; border: 1px solid var(--border-light); font-size: 14px; font-weight: 600; color: var(--text-primary); box-shadow: var(--shadow-subtle); display: flex; align-items: center; gap: 8px; }
 
         /* Content Sections */
-        .content-section { display: none; animation: fadeIn 0.3s ease; }
+        .content-section { display: none; animation: fadeIn 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
         .content-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Stats Cards */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 35px; }
-        .stat-box { background: white; padding: 25px; border-radius: var(--radius-md); border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm); }
-        .stat-box h3 { margin: 0 0 5px 0; font-size: 30px; color: var(--text-dark); }
-        .stat-box p { margin: 0; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px; }
+        .stat-box { background: var(--surface-white); padding: 30px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-subtle); }
+        .stat-box h3 { margin: 0 0 8px 0; font-size: 36px; font-weight: 800; color: var(--text-primary); }
+        .stat-box p { margin: 0; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
 
         /* Quiz Category Grid */
-        .quiz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .premium-card { background: white; padding: 25px; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm); }
+        .quiz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+        .premium-card { background: var(--surface-white); padding: 30px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-subtle); transition: var(--transition); }
+        .premium-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: var(--brand-primary); }
         
         /* Tables */
-        .table-container { background: white; border-radius: var(--radius-md); border: 1px solid #e2e8f0; overflow: hidden; box-shadow: var(--shadow-sm); }
+        .table-container { background: var(--surface-white); border-radius: var(--radius-lg); border: 1px solid var(--border-light); overflow: hidden; box-shadow: var(--shadow-subtle); }
         table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
-        th { background: #f8fafc; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        th, td { padding: 18px 24px; border-bottom: 1px solid var(--border-light); font-size: 14px; color: var(--text-primary); }
+        th { background: rgba(104, 112, 137, 0.04); font-weight: 700; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
         tr:last-child td { border-bottom: none; }
-        tr:hover { background: #fafafa; }
+        tr:hover td { background: rgba(104, 112, 137, 0.02); }
         
-        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .badge-pass { background: #d1fae5; color: #065f46; }
-        .badge-fail { background: #fee2e2; color: #991b1b; }
+        .badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-block; }
+        .badge-pass { background: rgba(24, 183, 122, 0.15); color: var(--accent-green); }
+        .badge-fail { background: rgba(255, 107, 74, 0.15); color: var(--accent-coral); }
+
+        .btn-action { display: inline-block; padding: 12px 24px; background: var(--brand-primary); color: white; text-decoration: none; border-radius: var(--radius-md); font-weight: 600; font-size: 14px; transition: var(--transition); text-align: center; border: none; cursor: pointer; }
+        .btn-action:hover { background: var(--brand-secondary); transform: translateY(-1px); }
     </style>
 </head>
 <body>
 
     <!-- Sidebar Navigation -->
     <div class="sidebar">
-        <!-- Made the header a clickable link to the homepage -->
-        <a href="../index.php" style="text-decoration: none;">
-            <div class="sidebar-header">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent-primary)"><path d="M12 2L2 7l10 5 10-5-10-5zm0 7.5l-10-5v10l10 5 10-5v-10l-10 5z"/></svg>
-                IT Quiz Student
+        <a href="../index.php" class="sidebar-header">
+            <div class="logo-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             </div>
+            IT Quiz Student
         </a>
         
         <div class="sidebar-menu">
-            <!-- Added a dedicated Homepage button -->
-            <a href="../index.php" class="menu-item" style="text-decoration: none;">
-                🌐 Public Homepage
+            <a href="../index.php" class="menu-item">
+                🏠 Home
             </a>
             
             <div class="menu-item active" onclick="switchTab('dashboard', this)">📊 Dashboard Overview</div>
-            <div class="menu-item" onclick="switchTab('quizzes', this)">🚀 Available Quizzes</div>
+            <div class="menu-item" onclick="switchTab('quizzes', this)" id="menu-quizzes">🧩 Available Quizzes</div>
             <div class="menu-item" onclick="switchTab('history', this)">📜 Evaluation History</div>
-            <div class="menu-item" onclick="switchTab('profile', this)">👤 My Profile</div>
+            <a href="profile.php" class="menu-item">⚙️ My Profile</a>
         </div>
         
         <div class="sidebar-footer">
+            <button class="theme-toggle" id="themeToggleBtn" aria-label="Toggle dark mode">
+                <svg id="sunIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <svg id="moonIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
             <a href="logout.php" class="btn-logout">Logout</a>
         </div>
     </div>
@@ -124,13 +150,13 @@ $avg_score = ($total_taken > 0) ? round($stats['avg_score']) : 0;
     <!-- Main Content Panel -->
     <div class="main-content">
         <div class="header-top">
-            <h2 id="page-title" style="margin:0;">Dashboard Overview</h2>
+            <h2 id="page-title">Dashboard Overview</h2>
             <div class="user-badge">👤 <?php echo htmlspecialchars($user_data['name'] ?? 'Student'); ?></div>
         </div>
 
         <!-- 1. DASHBOARD OVERVIEW -->
         <div id="dashboard" class="content-section active">
-            <p>Welcome back! Here is a summary of your platform performance.</p>
+            <p style="color: var(--text-secondary); margin-bottom: 30px;">Welcome back! Here is a summary of your platform performance and progress.</p>
             
             <div class="stats-grid">
                 <div class="stat-box">
@@ -150,8 +176,8 @@ $avg_score = ($total_taken > 0) ? round($stats['avg_score']) : 0;
 
         <!-- 2. AVAILABLE QUIZZES -->
         <div id="quizzes" class="content-section">
-            <h2>Available Quizzes</h2>
-            <p>Select a category to begin testing your skills.</p>
+            <h2 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">Available Quizzes</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 30px;">Select a category to begin testing your skills across different tiers.</p>
             
             <div class="quiz-grid">
                 <?php
@@ -160,15 +186,15 @@ $avg_score = ($total_taken > 0) ? round($stats['avg_score']) : 0;
                         ?>
                         <div class="premium-card" style="display: flex; flex-direction: column; justify-content: space-between;">
                             <div>
-                                <h3 style="margin-top:0; color: var(--text-dark);"><?php echo htmlspecialchars($cat['category_name'] ?? ''); ?></h3>
-                                <p><?php echo htmlspecialchars($cat['description'] ?? ''); ?></p>
+                                <h3 style="margin-top:0; color: var(--text-primary); font-size: 20px; font-weight: 700; margin-bottom: 10px;"><?php echo htmlspecialchars($cat['category_name'] ?? ''); ?></h3>
+                                <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.5; margin-bottom: 20px;"><?php echo htmlspecialchars($cat['description'] ?? 'Take an evaluation in this category to test your technical competency.'); ?></p>
                             </div>
-                            <a href="quiz_difficulty.php?category_id=<?php echo $cat['category_id']; ?>" class="btn" style="text-align: center; margin-top: 15px; display: block; padding: 10px; background: var(--accent-primary); color: white; text-decoration: none; border-radius: var(--radius-md);">Start Quiz</a>
+                            <a href="quiz_difficulty.php?category_id=<?php echo $cat['category_id']; ?>" class="btn-action">Start Quiz →</a>
                         </div>
                         <?php
                     }
                 } else {
-                    echo "<p>No categories found.</p>";
+                    echo "<p style='color: var(--text-secondary);'>No categories found.</p>";
                 }
                 ?>
             </div>
@@ -176,8 +202,8 @@ $avg_score = ($total_taken > 0) ? round($stats['avg_score']) : 0;
 
         <!-- 3. EVALUATION HISTORY -->
         <div id="history" class="content-section">
-            <h2>Evaluation History</h2>
-            <p>Review your previous scores and access your earned certificates.</p>
+            <h2 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">Evaluation History</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 30px;">Review your previous scores and access your verified certificates.</p>
             
             <div class="table-container">
                 <table>
@@ -197,51 +223,70 @@ $avg_score = ($total_taken > 0) ? round($stats['avg_score']) : 0;
                                 $badge = ($history['status'] == 'Pass') ? 'badge-pass' : 'badge-fail';
                                 echo "<tr>";
                                 echo "<td>" . date('M d, Y', strtotime($history['attempt_date'])) . "</td>";
-                                echo "<td>" . htmlspecialchars($history['category_name'] ?? 'Unknown') . "</td>";
-                                echo "<td>" . $history['percentage'] . "%</td>";
+                                echo "<td><strong>" . htmlspecialchars($history['category_name'] ?? 'Unknown') . "</strong></td>";
+                                echo "<td><strong>" . $history['percentage'] . "%</strong></td>";
                                 echo "<td><span class='badge $badge'>" . $history['status'] . "</span></td>";
                                 
                                 if ($history['status'] == 'Pass') {
-                                    echo "<td><a href='certificate.php?result_id=" . $history['result_id'] . "' style='color: var(--accent-primary); text-decoration: none; font-weight: 500;'>View Certificate</a></td>";
+                                    echo "<td><a href='certificate.php?result_id=" . $history['result_id'] . "' style='color: var(--brand-primary); text-decoration: none; font-weight: 700;'>View Certificate →</a></td>";
                                 } else {
-                                    echo "<td>-</td>";
+                                    echo "<td style='color: var(--text-secondary);'>-</td>";
                                 }
                                 echo "</tr>";
                             }
                         } else {
-                            echo "<tr><td colspan='5' style='text-align: center; color: var(--text-muted);'>No evaluation history available.</td></tr>";
+                            echo "<tr><td colspan='5' style='text-align: center; color: var(--text-secondary); padding: 40px;'>No evaluation history available yet.</td></tr>";
                         }
                         ?>
                     </tbody>
                 </table>
             </div>
         </div>
-
-        <!-- 4. PROFILE -->
-        <div id="profile" class="content-section">
-            <h2>My Profile</h2>
-            <p>Your student account credentials.</p>
-            
-            <div class="premium-card" style="max-width: 450px;">
-                <p style="margin: 0 0 10px 0;"><strong>Full Name:</strong> <?php echo htmlspecialchars($user_data['name'] ?? ''); ?></p>
-                <p style="margin: 0 0 10px 0;"><strong>Email Address:</strong> <?php echo htmlspecialchars($user_data['email'] ?? ''); ?></p>
-                <p style="margin: 0;"><strong>Student ID:</strong> #<?php echo str_pad($user_data['customer_id'] ?? 0, 5, '0', STR_PAD_LEFT); ?></p>
-            </div>
-        </div>
     </div>
 
     <script>
+        // Dark Mode Toggle Logic
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        const htmlElement = document.documentElement;
+
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        htmlElement.setAttribute('data-theme', savedTheme);
+        updateIcons(savedTheme);
+
+        themeToggleBtn.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            htmlElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateIcons(newTheme);
+        });
+
+        function updateIcons(theme) {
+            if (theme === 'dark') {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            } else {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            }
+        }
+
         function switchTab(tabId, element) {
-            // Update active menu styling
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
             
-            // Update header title based on text
             document.getElementById('page-title').innerText = element.innerText.replace(/[^a-zA-Z\s]/g, '').trim();
 
-            // Switch active section panel
             document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
+        }
+
+        // Auto-switch to quizzes tab if hash is present in URL (e.g. #quizzes)
+        if (window.location.hash === '#quizzes') {
+            switchTab('quizzes', document.getElementById('menu-quizzes'));
         }
     </script>
 </body>
