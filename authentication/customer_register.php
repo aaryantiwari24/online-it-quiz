@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 include '../include/db.php';
 
@@ -6,28 +7,74 @@ $error = "";
 $success = "";
 
 if (isset($_POST['register'])) {
-    $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $password = mysqli_real_escape_string($conn, $_POST['password']);
 
-    if (!empty($name) && !empty($email) && !empty($password)) {
-        $check_query = mysqli_query($conn, "SELECT * FROM customer WHERE email = '$email'");
-        if (mysqli_num_rows($check_query) > 0) {
-            $error = "Email is already registered.";
-        } else {
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $insert_query = "INSERT INTO customer (name, email, password) VALUES ('$name', '$email', '$hashed_password')";
-            
-            if (mysqli_query($conn, $insert_query)) {
-                $success = "Registration successful! You can now login.";
-            } else {
-                $error = "Registration failed: " . mysqli_error($conn);
-            }
-        }
-    } else {
+    $name = trim($_POST['name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    // Basic validation
+    if ($name === '' || $email === '' || $password === '') {
         $error = "All fields are required.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Please enter a valid email address.";
+    } elseif (strlen($name) < 2) {
+        $error = "Name must contain at least 2 characters.";
+    } elseif (strlen($password) < 6) {
+        $error = "Password must contain at least 6 characters.";
+    } else {
+
+        // Check whether email already exists
+        $stmt = mysqli_prepare(
+            $conn,
+            "SELECT customer_id FROM customer WHERE email = ? LIMIT 1"
+        );
+
+        mysqli_stmt_bind_param($stmt, "s", $email);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_store_result($stmt);
+
+        if (mysqli_stmt_num_rows($stmt) > 0) {
+
+            $error = "Email is already registered.";
+
+        } else {
+
+            mysqli_stmt_close($stmt);
+
+            // Hash password before storing it
+            $hashed_password = password_hash(
+                $password,
+                PASSWORD_DEFAULT
+            );
+
+            $stmt = mysqli_prepare(
+                $conn,
+                "INSERT INTO customer (name, email, password)
+                 VALUES (?, ?, ?)"
+            );
+
+            mysqli_stmt_bind_param(
+                $stmt,
+                "sss",
+                $name,
+                $email,
+                $hashed_password
+            );
+
+            if (mysqli_stmt_execute($stmt)) {
+
+                $success = "Registration successful! You can now login.";
+
+            } else {
+
+                $error = "Registration failed. Please try again.";
+            }
+
+            mysqli_stmt_close($stmt);
+        }
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="light">

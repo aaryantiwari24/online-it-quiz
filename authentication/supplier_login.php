@@ -1,35 +1,59 @@
 <?php
+
 session_start();
 include '../include/db.php';
 
 $error = "";
 
 if (isset($_POST['login'])) {
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $password = mysqli_real_escape_string($conn, $_POST['password']);
 
-    if (!empty($email) && !empty($password)) {
-        $query = "SELECT * FROM supplier WHERE email = '$email' LIMIT 1";
-        $result = mysqli_query($conn, $query);
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
 
-        if ($result && mysqli_num_rows($result) == 1) {
-            $supplier = mysqli_fetch_assoc($result);
-            
-            if ($password === $supplier['password'] || password_verify($password, $supplier['password'])) {
-                $_SESSION['supplier_id'] = $supplier['supplier_id'];
-                $_SESSION['supplier_email'] = $supplier['email'];
-                header("Location: ../supplier/dashboard.php");
-                exit();
-            } else {
-                $error = "Invalid password.";
-            }
-        } else {
-            $error = "Supplier account not found.";
-        }
-    } else {
+    if ($email === '' || $password === '') {
+
         $error = "All fields are required.";
+
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+
+        $error = "Please enter a valid email address.";
+
+    } else {
+
+        $stmt = mysqli_prepare(
+            $conn,
+            "SELECT supplier_id, name, email, password
+             FROM supplier
+             WHERE email = ?
+             LIMIT 1"
+        );
+
+        mysqli_stmt_bind_param($stmt, "s", $email);
+        mysqli_stmt_execute($stmt);
+
+        $result = mysqli_stmt_get_result($stmt);
+        $supplier = mysqli_fetch_assoc($result);
+
+        mysqli_stmt_close($stmt);
+
+        if ($supplier && password_verify($password, $supplier['password'])) {
+
+            session_regenerate_id(true);
+
+            $_SESSION['supplier_id'] = $supplier['supplier_id'];
+            $_SESSION['supplier_email'] = $supplier['email'];
+            $_SESSION['supplier_name'] = $supplier['name'];
+
+            header("Location: ../supplier/dashboard.php");
+            exit();
+
+        } else {
+
+            $error = "Invalid email or password.";
+        }
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="light">

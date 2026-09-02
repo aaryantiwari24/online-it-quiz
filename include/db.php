@@ -1,14 +1,22 @@
 <?php
+
 $servername = "localhost";
-$username = "root";
-$password = ""; // Default XAMPP password is empty
-$database = "online_it_quiz";
+$username   = "root";
+$password   = "";
+$database   = "online_it_quiz";
 
-// Create connection
-$conn = mysqli_connect($servername, $username, $password, $database);
+$conn = mysqli_connect(
+    $servername,
+    $username,
+    $password,
+    $database
+);
 
-// Check connection
 if (!$conn) {
-    die("Connection failed: " . mysqli_connect_error());
+    die("Database connection failed.");
 }
+
+// Use UTF-8 for proper handling of text
+mysqli_set_charset($conn, "utf8mb4");
+
 ?>

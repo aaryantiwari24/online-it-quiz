@@ -1,33 +1,57 @@
 <?php
+
 session_start();
 include '../include/db.php';
 
 $error = "";
 
 if (isset($_POST['login'])) {
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $password = mysqli_real_escape_string($conn, $_POST['password']);
 
-    if (!empty($email) && !empty($password)) {
-        $query = "SELECT * FROM customer WHERE email = '$email' LIMIT 1";
-        $result = mysqli_query($conn, $query);
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
 
-        if ($result && mysqli_num_rows($result) == 1) {
-            $customer = mysqli_fetch_assoc($result);
-            
-            if ($password === $customer['password'] || password_verify($password, $customer['password'])) {
-                $_SESSION['customer_id'] = $customer['customer_id'];
-                $_SESSION['customer_name'] = $customer['name'];
-                header("Location: ../customer/dashboard.php");
-                exit();
-            } else {
-                $error = "Invalid password.";
-            }
-        } else {
-            $error = "Customer account not found.";
-        }
-    } else {
+    if ($email === '' || $password === '') {
+
         $error = "All fields are required.";
+
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+
+        $error = "Please enter a valid email address.";
+
+    } else {
+
+        $stmt = mysqli_prepare(
+            $conn,
+            "SELECT customer_id, name, password
+             FROM customer
+             WHERE email = ?
+             LIMIT 1"
+        );
+
+        mysqli_stmt_bind_param($stmt, "s", $email);
+        mysqli_stmt_execute($stmt);
+
+        $result = mysqli_stmt_get_result($stmt);
+        $customer = mysqli_fetch_assoc($result);
+
+        mysqli_stmt_close($stmt);
+
+        if ($customer && password_verify($password, $customer['password'])) {
+
+            // Prevent session fixation
+            session_regenerate_id(true);
+
+            $_SESSION['customer_id'] = $customer['customer_id'];
+            $_SESSION['customer_name'] = $customer['name'];
+
+            header("Location: ../customer/dashboard.php");
+            exit();
+
+        } else {
+
+            // Don't reveal whether email or password was wrong
+            $error = "Invalid email or password.";
+        }
     }
 }
 ?>
