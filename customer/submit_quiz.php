@@ -5,62 +5,133 @@ ini_set('display_errors', 1);
 session_start();
 include '../include/db.php';
 
-if (!isset($_SESSION['customer_id']) || !isset($_SESSION['quiz_questions'])) {
+if (!isset($_SESSION['customer_id'])) {
     header("Location: dashboard.php");
     exit();
 }
 
-$customer_id = $_SESSION['customer_id'];
-$category_id = $_SESSION['quiz_category_id'];
-$difficulty = $_SESSION['quiz_difficulty'] ?? 'General';
-$questions = $_SESSION['quiz_questions'];
-$total_questions = count($questions);
-$correct_answers = 0;
-
-$submitted_answers = isset($_POST['answer']) ? $_POST['answer'] : [];
-$review_data = [];
-
-foreach ($questions as $q) {
-    $q_id = $q['question_id'];
-    $actual_answer = strtolower(trim($q['correct_answer'])); 
-    $user_answer = isset($submitted_answers[$q_id]) ? strtolower(trim($submitted_answers[$q_id])) : '';
+// =========================================================================
+// 1. POST REQUEST HANDLER (Database Insert & Post-Redirect-Get pattern)
+// =========================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-    $is_correct = ($user_answer === $actual_answer);
-    if ($is_correct) {
-        $correct_answers++;
+    // Server-Side Duplicate Check using Token Verification
+    $post_token = $_POST['quiz_token'] ?? '';
+    $session_token = $_SESSION['quiz_token'] ?? '';
+
+    // If tokens are missing, empty, or mismatched, the attempt is rejected
+    if (empty($post_token) || empty($session_token) || !hash_equals($session_token, $post_token)) {
+        die_duplicate_message();
     }
 
-    $review_data[] = [
-        'question' => $q['question'],
-        'option_a' => $q['option_a'],
-        'option_b' => $q['option_b'],
-        'option_c' => $q['option_c'],
-        'option_d' => $q['option_d'],
-        'user_answer' => strtoupper($user_answer),
-        'correct_answer' => strtoupper($actual_answer),
-        'is_correct' => $is_correct
+    if (!isset($_SESSION['quiz_questions'])) {
+        header("Location: dashboard.php");
+        exit();
+    }
+
+    $customer_id = $_SESSION['customer_id'];
+    $category_id = $_SESSION['quiz_category_id'];
+    $difficulty = $_SESSION['quiz_difficulty'] ?? 'General';
+    $questions = $_SESSION['quiz_questions'];
+    $total_questions = count($questions);
+    $correct_answers = 0;
+
+    $submitted_answers = isset($_POST['answer']) ? $_POST['answer'] : [];
+    $review_data = [];
+
+    foreach ($questions as $q) {
+        $q_id = $q['question_id'];
+        $actual_answer = strtolower(trim($q['correct_answer'])); 
+        $user_answer = isset($submitted_answers[$q_id]) ? strtolower(trim($submitted_answers[$q_id])) : '';
+        
+        $is_correct = ($user_answer === $actual_answer);
+        if ($is_correct) {
+            $correct_answers++;
+        }
+
+        $review_data[] = [
+            'question' => $q['question'],
+            'option_a' => $q['option_a'],
+            'option_b' => $q['option_b'],
+            'option_c' => $q['option_c'],
+            'option_d' => $q['option_d'],
+            'user_answer' => strtoupper($user_answer),
+            'correct_answer' => strtoupper($actual_answer),
+            'is_correct' => $is_correct
+        ];
+    }
+
+    $wrong_answers = $total_questions - $correct_answers;
+    $percentage = ($total_questions > 0) ? round(($correct_answers / $total_questions) * 100) : 0;
+    $status = ($percentage >= 60) ? 'Pass' : 'Fail';
+    $attempt_date = date('Y-m-d H:i:s');
+
+    // Store securely
+    $insert_query = "INSERT INTO result (customer_id, category_id, difficulty, percentage, status, attempt_date) VALUES (?, ?, ?, ?, ?, ?)";
+    $stmt = mysqli_prepare($conn, $insert_query);
+    mysqli_stmt_bind_param($stmt, "iisiss", $customer_id, $category_id, $difficulty, $percentage, $status, $attempt_date);
+
+    if (!mysqli_stmt_execute($stmt)) {
+        die("Database Error: " . mysqli_error($conn));
+    }
+    $result_id = mysqli_insert_id($conn);
+    mysqli_stmt_close($stmt);
+
+    // Consume the token and clear the quiz session
+    unset($_SESSION['quiz_token']);
+    unset($_SESSION['quiz_questions']);
+    unset($_SESSION['quiz_category_id']);
+    unset($_SESSION['quiz_difficulty']);
+    unset($_SESSION['quiz_start_time']);
+
+    // Pass data forward via session to the GET view
+    $_SESSION['quiz_review_display'] = [
+        'result_id' => $result_id,
+        'difficulty' => $difficulty,
+        'percentage' => $percentage,
+        'status' => $status,
+        'correct_answers' => $correct_answers,
+        'wrong_answers' => $wrong_answers,
+        'total_questions' => $total_questions,
+        'review_data' => $review_data
     ];
+
+    // Force redirect (Post/Redirect/Get pattern)
+    header("Location: submit_quiz.php");
+    exit();
 }
 
-$wrong_answers = $total_questions - $correct_answers;
-$percentage = ($total_questions > 0) ? round(($correct_answers / $total_questions) * 100) : 0;
-$status = ($percentage >= 60) ? 'Pass' : 'Fail';
-$attempt_date = date('Y-m-d H:i:s');
-
-$insert_query = "INSERT INTO result (customer_id, category_id, difficulty, percentage, status, attempt_date) VALUES (?, ?, ?, ?, ?, ?)";
-$stmt = mysqli_prepare($conn, $insert_query);
-mysqli_stmt_bind_param($stmt, "iisiss", $customer_id, $category_id, $difficulty, $percentage, $status, $attempt_date);
-
-if (!mysqli_stmt_execute($stmt)) {
-    die("Database Error: " . mysqli_error($conn));
+// =========================================================================
+// 2. GET REQUEST HANDLER (Render HTML Results Safely)
+// =========================================================================
+function die_duplicate_message() {
+    echo "<!DOCTYPE html><html lang='en' data-theme='light'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Duplicate Submission</title><link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap' rel='stylesheet'><link rel='stylesheet' href='../assets/style.css'></head>";
+    echo "<body style='background-color: var(--bg-main); font-family: \"Plus Jakarta Sans\", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;'>";
+    echo "<div style='background: var(--surface-white); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow-subtle); text-align: center; border: 1px solid var(--border-light); max-width: 500px;'>";
+    echo "<h2 style='color: var(--text-primary); margin-top: 0; font-size: 24px; font-weight: 800;'>Submission Error</h2>";
+    echo "<p style='color: var(--text-secondary); margin-bottom: 30px; line-height: 1.6;'>This quiz attempt has already been submitted and securely recorded.</p>";
+    echo "<a href='dashboard.php#history' style='display: inline-block; padding: 12px 24px; background: var(--brand-primary); color: white; text-decoration: none; border-radius: var(--radius-md); font-weight: 600; box-shadow: 0 4px 12px rgba(81,70,229,0.2);'>View Evaluation History</a>";
+    echo "</div></body></html>";
+    exit();
 }
-$result_id = mysqli_insert_id($conn);
-mysqli_stmt_close($stmt);
 
-unset($_SESSION['quiz_questions']);
-unset($_SESSION['quiz_category_id']);
-unset($_SESSION['quiz_difficulty']);
-unset($_SESSION['quiz_start_time']);
+// If they access this script directly without a completed session view, send back.
+if (!isset($_SESSION['quiz_review_display'])) {
+    header("Location: dashboard.php");
+    exit();
+}
+
+// Load data for the UI
+$res = $_SESSION['quiz_review_display'];
+$result_id = $res['result_id'];
+$difficulty = $res['difficulty'];
+$percentage = $res['percentage'];
+$status = $res['status'];
+$correct_answers = $res['correct_answers'];
+$wrong_answers = $res['wrong_answers'];
+$total_questions = $res['total_questions'];
+$review_data = $res['review_data'];
+
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -116,6 +187,7 @@ unset($_SESSION['quiz_start_time']);
 <body>
 
     <div class="result-container">
+        <!-- Score Card -->
         <div class="result-card">
             <?php if ($status === 'Pass'): ?>
                 <div class="score-circle pass-circle"><?php echo $percentage; ?>%</div>
@@ -152,6 +224,7 @@ unset($_SESSION['quiz_start_time']);
             </div>
         </div>
 
+        <!-- Detailed Answer Review -->
         <div class="review-card">
             <h2>Detailed Answer Review</h2>
             <?php foreach ($review_data as $index => $rev): $qNum = $index + 1; ?>

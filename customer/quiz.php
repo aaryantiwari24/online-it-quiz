@@ -19,12 +19,12 @@ if ($requested_diff && !in_array($requested_diff, $valid_diffs)) {
 if ($requested_cat && $requested_diff && (!isset($_SESSION['quiz_category_id']) || $_SESSION['quiz_category_id'] != $requested_cat || $_SESSION['quiz_difficulty'] != $requested_diff)) {
     unset($_SESSION['quiz_questions']);
     unset($_SESSION['quiz_start_time']);
+    unset($_SESSION['quiz_token']);
 }
 
 if (!isset($_SESSION['quiz_questions'])) {
     if ($requested_cat && $requested_diff) {
         
-        // Ensure strictly >= 10 questions exist combined across ALL suppliers
         $count_stmt = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM question WHERE category_id = ? AND difficulty = ?");
         mysqli_stmt_bind_param($count_stmt, "is", $requested_cat, $requested_diff);
         mysqli_stmt_execute($count_stmt);
@@ -43,7 +43,6 @@ if (!isset($_SESSION['quiz_questions'])) {
             exit();
         }
         
-        // Pull exactly 10 questions randomly combined from all suppliers for this category/diff
         $stmt = mysqli_prepare($conn, "SELECT * FROM question WHERE category_id = ? AND difficulty = ? ORDER BY RAND() LIMIT 10");
         mysqli_stmt_bind_param($stmt, "is", $requested_cat, $requested_diff);
         mysqli_stmt_execute($stmt);
@@ -59,6 +58,7 @@ if (!isset($_SESSION['quiz_questions'])) {
         $_SESSION['quiz_category_id'] = $requested_cat;
         $_SESSION['quiz_difficulty'] = $requested_diff;
         $_SESSION['quiz_start_time'] = time();
+        $_SESSION['quiz_token'] = bin2hex(random_bytes(16)); // Secure unique token per attempt
     } else {
         header("Location: dashboard.php");
         exit();
@@ -143,6 +143,8 @@ if ($time_left <= 0) {
     </div>
 
     <form action="submit_quiz.php" method="POST" id="quizForm" class="quiz-layout">
+        <!-- CRITICAL FIX: The unique attempt token -->
+        <input type="hidden" name="quiz_token" value="<?php echo $_SESSION['quiz_token']; ?>">
         
         <div class="question-area">
             <?php foreach ($questions as $index => $q): $qNum = $index + 1; ?>
