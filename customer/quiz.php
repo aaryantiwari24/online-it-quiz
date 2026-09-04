@@ -24,8 +24,7 @@ if ($requested_cat && $requested_diff && (!isset($_SESSION['quiz_category_id']) 
 if (!isset($_SESSION['quiz_questions'])) {
     if ($requested_cat && $requested_diff) {
         
-        // Remove 'status' check to match your database schema.
-        // It relies purely on the 10-question minimum to determine if it is "Published".
+        // Ensure strictly >= 10 questions exist combined across ALL suppliers
         $count_stmt = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM question WHERE category_id = ? AND difficulty = ?");
         mysqli_stmt_bind_param($count_stmt, "is", $requested_cat, $requested_diff);
         mysqli_stmt_execute($count_stmt);
@@ -38,12 +37,13 @@ if (!isset($_SESSION['quiz_questions'])) {
             echo "<body style='display:flex; justify-content:center; align-items:center; height:100vh; background:var(--bg-main); font-family:sans-serif;'>";
             echo "<div style='background:var(--surface-white); padding:40px; border-radius:12px; box-shadow:0 12px 30px rgba(0,0,0,0.05); text-align:center;'>";
             echo "<h2 style='margin-top:0;'>Insufficient Questions</h2>";
-            echo "<p style='color:var(--text-secondary); margin-bottom:20px;'>This quiz requires 10 questions, but only {$count_row['total']} questions are available.</p>";
+            echo "<p style='color:var(--text-secondary); margin-bottom:20px;'>This quiz requires 10 questions, but only {$count_row['total']} questions are currently available in this category/difficulty.</p>";
             echo "<a href='dashboard.php' style='display:inline-block; padding:12px 24px; background:var(--brand-primary); color:white; text-decoration:none; border-radius:8px; font-weight:600;'>Return to Dashboard</a>";
             echo "</div></body></html>";
             exit();
         }
         
+        // Pull exactly 10 questions randomly combined from all suppliers for this category/diff
         $stmt = mysqli_prepare($conn, "SELECT * FROM question WHERE category_id = ? AND difficulty = ? ORDER BY RAND() LIMIT 10");
         mysqli_stmt_bind_param($stmt, "is", $requested_cat, $requested_diff);
         mysqli_stmt_execute($stmt);

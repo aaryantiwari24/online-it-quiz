@@ -2,6 +2,7 @@
 session_start();
 include '../include/db.php';
 
+// Check if supplier is logged in
 if (!isset($_SESSION['supplier_id'])) {
     header("Location: ../authentication/supplier_login.php");
     exit();
@@ -9,16 +10,18 @@ if (!isset($_SESSION['supplier_id'])) {
 
 $supplier_id = $_SESSION['supplier_id'];
 
+// Fetch supplier details
 $sup_query = mysqli_query($conn, "SELECT * FROM supplier WHERE supplier_id = $supplier_id");
 $supplier_data = mysqli_fetch_assoc($sup_query);
 
+// Metrics for this specific supplier
 $total_questions_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM question WHERE supplier_id = '$supplier_id'");
 $total_questions = mysqli_fetch_assoc($total_questions_query)['count'] ?? 0;
 
 $total_categories_query = mysqli_query($conn, "SELECT COUNT(DISTINCT category_id) as count FROM question WHERE supplier_id = '$supplier_id'");
 $total_categories = mysqli_fetch_assoc($total_categories_query)['count'] ?? 0;
 
-// Removed 'q.status' to fix the Fatal Error
+// Dynamically calculate category progress for THIS supplier only
 $progress_query = "SELECT c.category_name, 
                    SUM(CASE WHEN q.difficulty = 'Easy' THEN 1 ELSE 0 END) as easy_count,
                    SUM(CASE WHEN q.difficulty = 'Medium' THEN 1 ELSE 0 END) as med_count,
@@ -33,6 +36,7 @@ mysqli_stmt_bind_param($stmt_prog, "i", $supplier_id);
 mysqli_stmt_execute($stmt_prog);
 $progress_result = mysqli_stmt_get_result($stmt_prog);
 
+// Fetch recent questions added by this supplier
 $recent_q_query = "SELECT q.*, c.category_name 
                    FROM question q 
                    LEFT JOIN category c ON q.category_id = c.category_id 
@@ -127,8 +131,8 @@ $recent_questions = mysqli_query($conn, $recent_q_query);
         </div>
 
         <div class="table-card">
-            <h2>Category Progress & Status</h2>
-            <p style="color: var(--text-secondary); font-size: 13px; margin-top: -10px; margin-bottom: 20px;">A category is automatically marked as "Published" when it reaches 10 questions per difficulty tier.</p>
+            <h2>Category Progress & Readiness</h2>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-top: -10px; margin-bottom: 20px;">A category is dynamically marked as "Complete" when you provide at least 10 questions per difficulty tier.</p>
             <table>
                 <thead>
                     <tr>
@@ -152,7 +156,7 @@ $recent_questions = mysqli_query($conn, $recent_q_query);
                                 <td><?php echo $prog['hard_count']; ?>/10</td>
                                 <td>
                                     <?php if ($is_ready): ?>
-                                        <span class="badge" style="background: rgba(24, 183, 122, 0.15); color: var(--accent-green);">Published</span>
+                                        <span class="badge" style="background: rgba(24, 183, 122, 0.15); color: var(--accent-green);">Complete</span>
                                     <?php else: ?>
                                         <span class="badge" style="background: rgba(255, 107, 74, 0.15); color: var(--accent-coral);">Incomplete</span>
                                     <?php endif; ?>

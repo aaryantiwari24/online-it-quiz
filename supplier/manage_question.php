@@ -2,6 +2,7 @@
 session_start();
 include '../include/db.php';
 
+// Prevent browser form resubmission warning
 header("Cache-Control: private, must-revalidate, max-age=0");
 
 if (!isset($_SESSION['supplier_id'])) {
@@ -13,6 +14,9 @@ $supplier_id = $_SESSION['supplier_id'];
 $success_msg = "";
 $error_msg = "";
 
+// ==========================================
+// 1. HANDLE ADD QUESTION
+// ==========================================
 if (isset($_POST['add_question'])) {
     $cat_id = intval($_POST['category_id']);
     $diff = $_POST['difficulty'];
@@ -28,6 +32,7 @@ if (isset($_POST['add_question'])) {
     } elseif (empty($q_text) || empty($opt_a) || empty($opt_b) || empty($opt_c) || empty($opt_d)) {
         $error_msg = "All question and option fields are required.";
     } else {
+        // Global Duplicate Check (Does NOT filter by supplier_id so exact duplicates across suppliers are blocked)
         $check_query = "SELECT question_id FROM question WHERE category_id = ? AND difficulty = ? AND question = ? AND option_a = ? AND option_b = ? AND option_c = ? AND option_d = ? AND correct_answer = ?";
         $check_stmt = mysqli_prepare($conn, $check_query);
         mysqli_stmt_bind_param($check_stmt, "isssssss", $cat_id, $diff, $q_text, $opt_a, $opt_b, $opt_c, $opt_d, $correct);
@@ -37,13 +42,12 @@ if (isset($_POST['add_question'])) {
         if (mysqli_stmt_num_rows($check_stmt) > 0) {
             $error_msg = "This question already exists in this category and difficulty.";
         } else {
-            // Removed status column from the query to match your schema
             $query = "INSERT INTO question (category_id, supplier_id, question, option_a, option_b, option_c, option_d, correct_answer, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = mysqli_prepare($conn, $query);
             mysqli_stmt_bind_param($stmt, "iisssssss", $cat_id, $supplier_id, $q_text, $opt_a, $opt_b, $opt_c, $opt_d, $correct, $diff);
             
             if (mysqli_stmt_execute($stmt)) {
-                $success_msg = "Question saved successfully!";
+                $success_msg = "Question added successfully!";
             } else {
                 $error_msg = "Error adding question: " . mysqli_error($conn);
             }
@@ -53,6 +57,9 @@ if (isset($_POST['add_question'])) {
     }
 }
 
+// ==========================================
+// 2. HANDLE UPDATE QUESTION
+// ==========================================
 if (isset($_POST['update_question'])) {
     $q_id = intval($_POST['question_id']);
     $cat_id = intval($_POST['category_id']);
@@ -69,6 +76,7 @@ if (isset($_POST['update_question'])) {
     } elseif (empty($q_text) || empty($opt_a) || empty($opt_b) || empty($opt_c) || empty($opt_d)) {
         $error_msg = "All question and option fields are required.";
     } else {
+        // Global Duplicate Check excluding the current question ID being edited
         $check_query = "SELECT question_id FROM question WHERE category_id = ? AND difficulty = ? AND question = ? AND option_a = ? AND option_b = ? AND option_c = ? AND option_d = ? AND correct_answer = ? AND question_id != ?";
         $check_stmt = mysqli_prepare($conn, $check_query);
         mysqli_stmt_bind_param($check_stmt, "isssssssi", $cat_id, $diff, $q_text, $opt_a, $opt_b, $opt_c, $opt_d, $correct, $q_id);
@@ -78,7 +86,7 @@ if (isset($_POST['update_question'])) {
         if (mysqli_stmt_num_rows($check_stmt) > 0) {
             $error_msg = "This question already exists in this category and difficulty.";
         } else {
-            // Removed status column from the query to match your schema
+            // Supplier Isolation: Ensures the logged-in supplier can only update their own question
             $query = "UPDATE question SET category_id = ?, question = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_answer = ?, difficulty = ? WHERE question_id = ? AND supplier_id = ?";
             $stmt = mysqli_prepare($conn, $query);
             mysqli_stmt_bind_param($stmt, "isssssssii", $cat_id, $q_text, $opt_a, $opt_b, $opt_c, $opt_d, $correct, $diff, $q_id, $supplier_id);
@@ -94,9 +102,13 @@ if (isset($_POST['update_question'])) {
     }
 }
 
+// ==========================================
+// 3. HANDLE DELETE QUESTION
+// ==========================================
 if (isset($_POST['delete_question'])) {
     $q_id = intval($_POST['delete_id']);
     
+    // Supplier Isolation
     $query = "DELETE FROM question WHERE question_id = ? AND supplier_id = ?";
     $stmt = mysqli_prepare($conn, $query);
     mysqli_stmt_bind_param($stmt, "ii", $q_id, $supplier_id);
@@ -109,10 +121,12 @@ if (isset($_POST['delete_question'])) {
     mysqli_stmt_close($stmt);
 }
 
+// Fetch Categories for dropdowns
 $categories = [];
 $cat_query = mysqli_query($conn, "SELECT * FROM category ORDER BY category_name ASC");
 while ($row = mysqli_fetch_assoc($cat_query)) { $categories[] = $row; }
 
+// Fetch All Questions for this supplier
 $all_q_query = "SELECT q.*, c.category_name FROM question q 
                 LEFT JOIN category c ON q.category_id = c.category_id 
                 WHERE q.supplier_id = $supplier_id ORDER BY q.question_id DESC";
