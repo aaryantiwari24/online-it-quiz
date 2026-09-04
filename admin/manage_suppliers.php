@@ -9,7 +9,10 @@ if (!isset($_SESSION['admin_id'])) {
 
 if (isset($_GET['delete'])) {
     $supplier_id = intval($_GET['delete']);
-    mysqli_query($conn, "DELETE FROM supplier WHERE supplier_id = $supplier_id");
+    $stmt = mysqli_prepare($conn, "DELETE FROM supplier WHERE supplier_id = ?");
+    mysqli_stmt_bind_param($stmt, "i", $supplier_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
     header("Location: manage_suppliers.php");
     exit();
 }

@@ -18,18 +18,23 @@ $username_key = array_key_exists('username', $admin) ? 'username' : (array_key_e
 $email_key = array_key_exists('email', $admin) ? 'email' : 'admin_email';
 
 if (isset($_POST['update_profile'])) {
-    $username = isset($_POST['username']) ? mysqli_real_escape_string($conn, $_POST['username']) : '';
-    $email = isset($_POST['email']) ? mysqli_real_escape_string($conn, $_POST['email']) : '';
+    $username = trim($_POST['username'] ?? '');
+    $email = trim($_POST['email'] ?? '');
     
     if (!empty($username) && !empty($email)) {
-        $update_query = "UPDATE admin SET $username_key = '$username', $email_key = '$email' WHERE admin_id = $admin_id";
-        if (mysqli_query($conn, $update_query)) {
+        // Prepare statement mapping to dynamic column names
+        $update_query = "UPDATE admin SET $username_key = ?, $email_key = ? WHERE admin_id = ?";
+        $stmt = mysqli_prepare($conn, $update_query);
+        mysqli_stmt_bind_param($stmt, "ssi", $username, $email, $admin_id);
+        
+        if (mysqli_stmt_execute($stmt)) {
             $success_msg = "Profile updated successfully!";
             $admin_query = mysqli_query($conn, "SELECT * FROM admin WHERE admin_id = $admin_id");
             $admin = mysqli_fetch_assoc($admin_query);
         } else {
             $error_msg = "Error updating profile: " . mysqli_error($conn);
         }
+        mysqli_stmt_close($stmt);
     } else {
         $error_msg = "All fields are required.";
     }

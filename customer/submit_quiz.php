@@ -18,7 +18,6 @@ $total_questions = count($questions);
 $correct_answers = 0;
 
 $submitted_answers = isset($_POST['answer']) ? $_POST['answer'] : [];
-
 $review_data = [];
 
 foreach ($questions as $q) {
@@ -48,19 +47,20 @@ $percentage = ($total_questions > 0) ? round(($correct_answers / $total_question
 $status = ($percentage >= 60) ? 'Pass' : 'Fail';
 $attempt_date = date('Y-m-d H:i:s');
 
-// Save to Database
-$insert_query = "INSERT INTO result (customer_id, category_id, difficulty, percentage, status, attempt_date) 
-                 VALUES ($customer_id, $category_id, '$difficulty', $percentage, '$status', '$attempt_date')";
+$insert_query = "INSERT INTO result (customer_id, category_id, difficulty, percentage, status, attempt_date) VALUES (?, ?, ?, ?, ?, ?)";
+$stmt = mysqli_prepare($conn, $insert_query);
+mysqli_stmt_bind_param($stmt, "iisiss", $customer_id, $category_id, $difficulty, $percentage, $status, $attempt_date);
 
-if (!mysqli_query($conn, $insert_query)) {
+if (!mysqli_stmt_execute($stmt)) {
     die("Database Error: " . mysqli_error($conn));
 }
 $result_id = mysqli_insert_id($conn);
+mysqli_stmt_close($stmt);
 
-// Clear session to allow new quizzes
 unset($_SESSION['quiz_questions']);
 unset($_SESSION['quiz_category_id']);
 unset($_SESSION['quiz_difficulty']);
+unset($_SESSION['quiz_start_time']);
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -95,7 +95,6 @@ unset($_SESSION['quiz_difficulty']);
         
         .action-buttons { display: flex; gap: 15px; justify-content: center; }
 
-        /* Review Section */
         .review-card { background: var(--surface-white); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow-subtle); border: 1px solid var(--border-light); }
         .review-card h2 { margin-top: 0; font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 25px; }
         .review-item { padding: 20px; border-radius: var(--radius-md); margin-bottom: 15px; border: 1px solid var(--border-light); background: var(--bg-main); text-align: left; }
@@ -117,7 +116,6 @@ unset($_SESSION['quiz_difficulty']);
 <body>
 
     <div class="result-container">
-        <!-- Score Card -->
         <div class="result-card">
             <?php if ($status === 'Pass'): ?>
                 <div class="score-circle pass-circle"><?php echo $percentage; ?>%</div>
@@ -154,7 +152,6 @@ unset($_SESSION['quiz_difficulty']);
             </div>
         </div>
 
-        <!-- Detailed Answer Review -->
         <div class="review-card">
             <h2>Detailed Answer Review</h2>
             <?php foreach ($review_data as $index => $rev): $qNum = $index + 1; ?>

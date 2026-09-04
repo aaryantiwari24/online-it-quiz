@@ -5,27 +5,31 @@ include '../include/db.php';
 $error = "";
 
 if (isset($_POST['login'])) {
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $password = mysqli_real_escape_string($conn, $_POST['password']);
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
 
     if (!empty($email) && !empty($password)) {
-        $query = "SELECT * FROM admin WHERE email = '$email' LIMIT 1";
-        $result = mysqli_query($conn, $query);
+        $stmt = mysqli_prepare($conn, "SELECT admin_id, email, password FROM admin WHERE email = ? LIMIT 1");
+        mysqli_stmt_bind_param($stmt, "s", $email);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
 
         if ($result && mysqli_num_rows($result) == 1) {
             $admin = mysqli_fetch_assoc($result);
             
-            if ($password === $admin['password'] || password_verify($password, $admin['password'])) {
-                $_SESSION['admin_id'] = $admin['admin_id'] ?? $admin['id'];
+            if (password_verify($password, $admin['password'])) {
+                session_regenerate_id(true);
+                $_SESSION['admin_id'] = $admin['admin_id'];
                 $_SESSION['admin_email'] = $admin['email'];
                 header("Location: ../admin/dashboard.php");
                 exit();
             } else {
-                $error = "Invalid password.";
+                $error = "Invalid email or password.";
             }
         } else {
-            $error = "Admin account not found.";
+            $error = "Invalid email or password.";
         }
+        mysqli_stmt_close($stmt);
     } else {
         $error = "All fields are required.";
     }

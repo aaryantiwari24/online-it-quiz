@@ -16,23 +16,28 @@ $error_msg = "";
 
 // Handle Profile Update
 if (isset($_POST['update_profile'])) {
-    $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $password = mysqli_real_escape_string($conn, $_POST['password']);
+    $name = trim($_POST['name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
     
     if (!empty($name) && !empty($email)) {
         if (!empty($password)) {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $query = "UPDATE supplier SET name = '$name', email = '$email', password = '$hashed_password' WHERE supplier_id = $supplier_id";
+            $query = "UPDATE supplier SET name = ?, email = ?, password = ? WHERE supplier_id = ?";
+            $stmt = mysqli_prepare($conn, $query);
+            mysqli_stmt_bind_param($stmt, "sssi", $name, $email, $hashed_password, $supplier_id);
         } else {
-            $query = "UPDATE supplier SET name = '$name', email = '$email' WHERE supplier_id = $supplier_id";
+            $query = "UPDATE supplier SET name = ?, email = ? WHERE supplier_id = ?";
+            $stmt = mysqli_prepare($conn, $query);
+            mysqli_stmt_bind_param($stmt, "ssi", $name, $email, $supplier_id);
         }
         
-        if (mysqli_query($conn, $query)) {
+        if (mysqli_stmt_execute($stmt)) {
             $success_msg = "Profile updated successfully!";
         } else {
             $error_msg = "Error updating profile: " . mysqli_error($conn);
         }
+        mysqli_stmt_close($stmt);
     } else {
         $error_msg = "Name and Email are required fields.";
     }

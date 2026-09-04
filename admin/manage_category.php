@@ -9,11 +9,15 @@ if (!isset($_SESSION['admin_id'])) {
 
 // Handle Add Category
 if (isset($_POST['add_category'])) {
-    $category_name = mysqli_real_escape_string($conn, $_POST['category_name']);
-    $description = mysqli_real_escape_string($conn, $_POST['description']);
+    $category_name = trim($_POST['category_name'] ?? '');
+    $description = trim($_POST['description'] ?? '');
     
     if (!empty($category_name)) {
-        mysqli_query($conn, "INSERT INTO category (category_name, description) VALUES ('$category_name', '$description')");
+        $stmt = mysqli_prepare($conn, "INSERT INTO category (category_name, description) VALUES (?, ?)");
+        mysqli_stmt_bind_param($stmt, "ss", $category_name, $description);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+        
         header("Location: manage_category.php");
         exit();
     }
@@ -22,7 +26,12 @@ if (isset($_POST['add_category'])) {
 // Handle Delete Category
 if (isset($_GET['delete'])) {
     $category_id = intval($_GET['delete']);
-    mysqli_query($conn, "DELETE FROM category WHERE category_id = $category_id");
+    
+    $stmt = mysqli_prepare($conn, "DELETE FROM category WHERE category_id = ?");
+    mysqli_stmt_bind_param($stmt, "i", $category_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+    
     header("Location: manage_category.php");
     exit();
 }

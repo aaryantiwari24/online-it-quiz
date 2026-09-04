@@ -9,7 +9,10 @@ if (!isset($_SESSION['admin_id'])) {
 
 if (isset($_GET['delete'])) {
     $result_id = intval($_GET['delete']);
-    mysqli_query($conn, "DELETE FROM result WHERE result_id = $result_id");
+    $stmt = mysqli_prepare($conn, "DELETE FROM result WHERE result_id = ?");
+    mysqli_stmt_bind_param($stmt, "i", $result_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
     header("Location: view_results.php");
     exit();
 }

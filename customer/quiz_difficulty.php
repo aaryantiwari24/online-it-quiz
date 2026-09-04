@@ -11,8 +11,14 @@ if (!isset($_SESSION['customer_id'])) {
 }
 
 $category_id = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
-$cat_query = mysqli_query($conn, "SELECT * FROM category WHERE category_id = $category_id");
+
+// Use prepared statement to validate category existence securely
+$stmt = mysqli_prepare($conn, "SELECT * FROM category WHERE category_id = ?");
+mysqli_stmt_bind_param($stmt, "i", $category_id);
+mysqli_stmt_execute($stmt);
+$cat_query = mysqli_stmt_get_result($stmt);
 $category = mysqli_fetch_assoc($cat_query);
+mysqli_stmt_close($stmt);
 
 if (!$category) {
     header("Location: dashboard.php");

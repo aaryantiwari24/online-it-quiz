@@ -2,7 +2,6 @@
 session_start();
 include '../include/db.php';
 
-// Check if supplier is logged in
 if (!isset($_SESSION['supplier_id'])) {
     header("Location: ../authentication/supplier_login.php");
     exit();
@@ -10,18 +9,30 @@ if (!isset($_SESSION['supplier_id'])) {
 
 $supplier_id = $_SESSION['supplier_id'];
 
-// Fetch supplier details
 $sup_query = mysqli_query($conn, "SELECT * FROM supplier WHERE supplier_id = $supplier_id");
 $supplier_data = mysqli_fetch_assoc($sup_query);
 
-// Metrics for this specific supplier
 $total_questions_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM question WHERE supplier_id = '$supplier_id'");
 $total_questions = mysqli_fetch_assoc($total_questions_query)['count'] ?? 0;
 
 $total_categories_query = mysqli_query($conn, "SELECT COUNT(DISTINCT category_id) as count FROM question WHERE supplier_id = '$supplier_id'");
 $total_categories = mysqli_fetch_assoc($total_categories_query)['count'] ?? 0;
 
-// Fetch recent questions added by this supplier
+// Removed 'q.status' to fix the Fatal Error
+$progress_query = "SELECT c.category_name, 
+                   SUM(CASE WHEN q.difficulty = 'Easy' THEN 1 ELSE 0 END) as easy_count,
+                   SUM(CASE WHEN q.difficulty = 'Medium' THEN 1 ELSE 0 END) as med_count,
+                   SUM(CASE WHEN q.difficulty = 'Hard' THEN 1 ELSE 0 END) as hard_count
+                   FROM question q 
+                   JOIN category c ON q.category_id = c.category_id 
+                   WHERE q.supplier_id = ? 
+                   GROUP BY c.category_id, c.category_name 
+                   ORDER BY c.category_name ASC";
+$stmt_prog = mysqli_prepare($conn, $progress_query);
+mysqli_stmt_bind_param($stmt_prog, "i", $supplier_id);
+mysqli_stmt_execute($stmt_prog);
+$progress_result = mysqli_stmt_get_result($stmt_prog);
+
 $recent_q_query = "SELECT q.*, c.category_name 
                    FROM question q 
                    LEFT JOIN category c ON q.category_id = c.category_id 
@@ -46,35 +57,26 @@ $recent_questions = mysqli_query($conn, $recent_q_query);
     </script>
     <style>
         body { background-color: var(--bg-main); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        
         .sidebar { width: 280px; background: var(--surface-white); border-right: 1px solid var(--border-light); display: flex; flex-direction: column; padding: 25px 20px; box-sizing: border-box; height: 100vh; }
         .sidebar-brand { font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 30px; display: flex; align-items: center; gap: 10px; text-decoration: none; }
         .logo-icon { width: 32px; height: 32px; background: var(--brand-primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; }
-        
         .sidebar-menu { display: flex; flex-direction: column; gap: 6px; flex: 1; }
         .sidebar-link { padding: 14px 16px; border-radius: var(--radius-md); text-decoration: none; color: var(--text-secondary); font-weight: 600; font-size: 14px; transition: var(--transition); border-left: 3px solid transparent; display: flex; align-items: center; gap: 10px; }
         .sidebar-link:hover, .sidebar-link.active { background: rgba(81, 70, 229, 0.08); color: var(--brand-primary); border-left-color: var(--brand-primary); }
-        
         .sidebar-footer { padding-top: 20px; border-top: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; }
         .sidebar-logout { padding: 10px 16px; border-radius: 8px; text-decoration: none; color: var(--accent-coral); font-weight: 600; font-size: 13px; transition: var(--transition); background: rgba(255, 107, 74, 0.1); border: 1px solid rgba(255, 107, 74, 0.2); }
         .sidebar-logout:hover { background: var(--accent-coral); color: white; }
-
         .theme-toggle { background: none; border: 1px solid var(--border-light); width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-primary); transition: var(--transition); }
         .theme-toggle:hover { background: var(--border-light); }
-
         .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 40px; box-sizing: border-box; background-color: var(--bg-main); }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 35px; }
         .dashboard-header h1 { font-size: 26px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.5px; }
-        
-        /* Top Right User Badge */
         .user-badge { background: var(--surface-white); padding: 10px 18px; border-radius: 30px; border: 1px solid var(--border-light); font-size: 14px; font-weight: 600; color: var(--text-primary); box-shadow: var(--shadow-subtle); display: flex; align-items: center; gap: 8px; }
-
         .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 40px; }
         .metric-card { background: var(--surface-white); padding: 30px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-subtle); }
         .metric-card h3 { margin: 0 0 10px 0; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
         .metric-card .number { font-size: 36px; font-weight: 800; color: var(--text-primary); margin: 0; }
-
-        .table-card { background: var(--surface-white); border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-subtle); padding: 30px; }
+        .table-card { background: var(--surface-white); border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-subtle); padding: 30px; margin-bottom: 40px; }
         .table-card h2 { margin-top: 0; font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
         th { padding: 14px 18px; background: rgba(104, 112, 137, 0.04); color: var(--text-secondary); font-weight: 700; border-bottom: 1px solid var(--border-light); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
@@ -85,7 +87,6 @@ $recent_questions = mysqli_query($conn, $recent_q_query);
     </style>
 </head>
 <body>
-
     <div class="sidebar">
         <a href="../index.php" class="sidebar-brand">
             <div class="logo-icon">
@@ -123,6 +124,48 @@ $recent_questions = mysqli_query($conn, $recent_q_query);
                 <h3>Categories Covered</h3>
                 <p class="number"><?php echo $total_categories; ?></p>
             </div>
+        </div>
+
+        <div class="table-card">
+            <h2>Category Progress & Status</h2>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-top: -10px; margin-bottom: 20px;">A category is automatically marked as "Published" when it reaches 10 questions per difficulty tier.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Easy</th>
+                        <th>Medium</th>
+                        <th>Hard</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (mysqli_num_rows($progress_result) > 0): ?>
+                        <?php while ($prog = mysqli_fetch_assoc($progress_result)): ?>
+                            <?php 
+                                $is_ready = ($prog['easy_count'] >= 10 && $prog['med_count'] >= 10 && $prog['hard_count'] >= 10);
+                            ?>
+                            <tr>
+                                <td><strong><?php echo htmlspecialchars($prog['category_name']); ?></strong></td>
+                                <td><?php echo $prog['easy_count']; ?>/10</td>
+                                <td><?php echo $prog['med_count']; ?>/10</td>
+                                <td><?php echo $prog['hard_count']; ?>/10</td>
+                                <td>
+                                    <?php if ($is_ready): ?>
+                                        <span class="badge" style="background: rgba(24, 183, 122, 0.15); color: var(--accent-green);">Published</span>
+                                    <?php else: ?>
+                                        <span class="badge" style="background: rgba(255, 107, 74, 0.15); color: var(--accent-coral);">Incomplete</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 40px;">No category progress found yet.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
 
         <div class="table-card">

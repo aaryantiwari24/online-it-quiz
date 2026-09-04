@@ -10,23 +10,26 @@ if (!isset($_GET['result_id']) || (!isset($_SESSION['customer_id']) && !isset($_
 
 $result_id = intval($_GET['result_id']);
 
-// If a student is viewing, restrict it to ONLY their certificates. 
-// If an admin is viewing, let them see any certificate.
-$where_clause = "WHERE r.result_id = $result_id";
-if (isset($_SESSION['customer_id'])) {
-    $customer_id = intval($_SESSION['customer_id']);
-    $where_clause .= " AND r.customer_id = $customer_id";
-}
-
-// Fetch result, customer name, category name, and difficulty
 $query = "SELECT r.*, c.category_name, cu.name as customer_name 
           FROM result r 
           JOIN customer cu ON r.customer_id = cu.customer_id 
           LEFT JOIN category c ON r.category_id = c.category_id 
-          $where_clause";
+          WHERE r.result_id = ?";
 
-$result = mysqli_query($conn, $query);
+if (isset($_SESSION['customer_id'])) {
+    $query .= " AND r.customer_id = ?";
+    $stmt = mysqli_prepare($conn, $query);
+    $customer_id = intval($_SESSION['customer_id']);
+    mysqli_stmt_bind_param($stmt, "ii", $result_id, $customer_id);
+} else {
+    $stmt = mysqli_prepare($conn, $query);
+    mysqli_stmt_bind_param($stmt, "i", $result_id);
+}
+
+mysqli_stmt_execute($stmt);
+$result = mysqli_stmt_get_result($stmt);
 $data = mysqli_fetch_assoc($result);
+mysqli_stmt_close($stmt);
 
 if (!$data || $data['status'] != 'Pass') {
     die("Unauthorized access or certificate not available.");
