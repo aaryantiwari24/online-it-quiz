@@ -8,25 +8,25 @@ if (!isset($_SESSION['customer_id'])) {
 }
 
 $requested_cat = isset($_REQUEST['category_id']) ? intval($_REQUEST['category_id']) : null;
-$requested_diff = isset($_REQUEST['difficulty']) ? $_REQUEST['difficulty'] : null;
+$requested_diff = isset($_REQUEST['difficulty']) ?$_REQUEST['difficulty'] : null;
 
 $valid_diffs = ['Easy', 'Medium', 'Hard'];
-if ($requested_diff && !in_array($requested_diff, $valid_diffs)) {
+if ($requested_diff && !in_array($requested_diff,$valid_diffs)) {
     header("Location: dashboard.php");
     exit();
 }
 
-if ($requested_cat && $requested_diff && (!isset($_SESSION['quiz_category_id']) || $_SESSION['quiz_category_id'] != $requested_cat || $_SESSION['quiz_difficulty'] != $requested_diff)) {
+if ($requested_cat && $requested_diff && (!isset($_SESSION['quiz_category_id']) || $_SESSION['quiz_category_id'] !=$requested_cat || $_SESSION['quiz_difficulty'] !=$requested_diff)) {
     unset($_SESSION['quiz_questions']);
     unset($_SESSION['quiz_start_time']);
     unset($_SESSION['quiz_token']);
 }
 
 if (!isset($_SESSION['quiz_questions'])) {
-    if ($requested_cat && $requested_diff) {
+    if ($requested_cat &&$requested_diff) {
         
         $count_stmt = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM question WHERE category_id = ? AND difficulty = ?");
-        mysqli_stmt_bind_param($count_stmt, "is", $requested_cat, $requested_diff);
+        mysqli_stmt_bind_param($count_stmt, "is", $requested_cat,$requested_diff);
         mysqli_stmt_execute($count_stmt);
         $count_res = mysqli_stmt_get_result($count_stmt);
         $count_row = mysqli_fetch_assoc($count_res);
@@ -44,32 +44,25 @@ if (!isset($_SESSION['quiz_questions'])) {
         }
         
         $stmt = mysqli_prepare($conn, "SELECT * FROM question WHERE category_id = ? AND difficulty = ? ORDER BY RAND() LIMIT 10");
-        mysqli_stmt_bind_param($stmt, "is", $requested_cat, $requested_diff);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        
-        $questions = [];
+        mysqli_stmt_bind_param($stmt, "is", $requested_cat,$requested_diff);
+        mysqli_stmt_execute($stmt);$result = mysqli_stmt_get_result($stmt);$questions = [];
         while($row = mysqli_fetch_assoc($result)) { 
-            $questions[] = $row; 
+            $questions[] =$row; 
         }
         mysqli_stmt_close($stmt);
         
-        $_SESSION['quiz_questions'] = $questions;
-        $_SESSION['quiz_category_id'] = $requested_cat;
-        $_SESSION['quiz_difficulty'] = $requested_diff;
-        $_SESSION['quiz_start_time'] = time();
-        $_SESSION['quiz_token'] = bin2hex(random_bytes(16)); // Secure unique token per attempt
+        $_SESSION['quiz_questions'] =$questions;
+        $_SESSION['quiz_category_id'] =$requested_cat;
+        $_SESSION['quiz_difficulty'] =$requested_diff;
+        $_SESSION['quiz_start_time'] = time();$_SESSION['quiz_token'] = bin2hex(random_bytes(16)); // Secure unique token per attempt
     } else {
         header("Location: dashboard.php");
         exit();
     }
 }
 
-$questions = $_SESSION['quiz_questions'];
-$total_questions = count($questions);
-$time_limit = 10 * 60; 
-$elapsed_time = time() - $_SESSION['quiz_start_time'];
-$time_left = max(0, $time_limit - $elapsed_time);
+$questions = $_SESSION['quiz_questions'];$total_questions = count($questions);$time_limit = 10 * 60; 
+$elapsed_time = time() - $_SESSION['quiz_start_time'];$time_left = max(0, $time_limit -$elapsed_time);
 
 if ($time_left <= 0) {
     header("Location: submit_quiz.php");
@@ -147,20 +140,19 @@ if ($time_left <= 0) {
         <input type="hidden" name="quiz_token" value="<?php echo $_SESSION['quiz_token']; ?>">
         
         <div class="question-area">
-            <?php foreach ($questions as $index => $q): $qNum = $index + 1; ?>
+            <?php foreach ($questions as $index =>$q): $qNum =$index + 1; ?>
                 <div class="question-card <?php echo $index === 0 ? 'active' : ''; ?>" id="q-<?php echo $qNum; ?>">
-                    <div class="q-number">Question <?php echo $qNum; ?> of <?php echo $total_questions; ?></div>
+                    <div class="q-number">Question <?php echo $qNum; ?> of <?php echo$total_questions; ?></div>
                     <div class="q-text"><?php echo htmlspecialchars($q['question']); ?></div>
                     
                     <div class="options-grid">
                         <?php 
                         $options = ['a', 'b', 'c', 'd'];
-                        foreach ($options as $opt): 
-                            $optValue = $q['option_' . $opt];
+                        foreach ($options as $opt):$optValue = $q['option_' .$opt];
                             if (!empty($optValue)):
                         ?>
-                            <input type="radio" class="option-input" name="answer[<?php echo $q['question_id']; ?>]" id="q<?php echo $qNum . $opt; ?>" value="<?php echo $opt; ?>" onchange="markAnswered(<?php echo $qNum; ?>)">
-                            <label class="option-label" for="q<?php echo $qNum . $opt; ?>">
+                            <input type="radio" class="option-input" name="answer[<?php echo $q['question_id']; ?>]" id="q<?php echo $qNum .$opt; ?>" value="<?php echo $opt; ?>" onchange="markAnswered(<?php echo $qNum; ?>)">
+                            <label class="option-label" for="q<?php echo $qNum .$opt; ?>">
                                 <div class="radio-circle"></div>
                                 <?php echo htmlspecialchars($optValue); ?>
                             </label>
@@ -175,7 +167,10 @@ if ($time_left <= 0) {
             <div class="quiz-footer">
                 <button type="button" class="btn-custom outline" id="btnPrev" onclick="navigate(-1)" disabled>Previous</button>
                 <button type="button" class="btn-custom primary" id="btnNext" onclick="navigate(1)">Next Question</button>
-                <button type="submit" class="btn-custom primary" id="btnSubmit" style="display: none; background: var(--accent-green);">Submit Exam</button>
+                <div id="submitMessage" style="display: none; color: #dc3545; margin-top: 10px; font-weight: 600;">
+                    Please attempt all 10 questions before submitting the quiz.
+                </div>
+                <button type="submit" class="btn-custom primary" id="btnSubmit" style="background: var(--accent-green);">Submit Exam</button>
             </div>
         </div>
 
@@ -216,10 +211,8 @@ if ($time_left <= 0) {
             
             if (currentQuestion === totalQuestions) {
                 document.getElementById('btnNext').style.display = 'none';
-                document.getElementById('btnSubmit').style.display = 'block';
             } else {
                 document.getElementById('btnNext').style.display = 'block';
-                document.getElementById('btnSubmit').style.display = 'none';
             }
             
             const progress = ((currentQuestion - 1) / totalQuestions) * 100;
@@ -243,6 +236,25 @@ if ($time_left <= 0) {
         let timeLeft = <?php echo $time_left; ?>;
         const timerDisplay = document.getElementById('timerDisplay');
         const form = document.getElementById('quizForm');
+        const submitMessage = document.getElementById('submitMessage');
+
+        form.addEventListener('submit', function (event) {
+            let unanswered = 0;
+
+            document.querySelectorAll('.question-card').forEach(card => {
+                if (!card.querySelector('input[type="radio"]:checked')) {
+                    unanswered++;
+                }
+            });
+
+            if (unanswered > 0) {
+                event.preventDefault();
+                submitMessage.style.display = 'block';
+            } else {
+                submitMessage.style.display = 'none';
+            }
+        });
+
 
         const timer = setInterval(() => {
             timeLeft--;
